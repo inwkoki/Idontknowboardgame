@@ -1,8 +1,8 @@
-import { CARD_BY_ID, COLORS } from '../games/secret-rule/cards.js';
+import { getCard, COLORS } from '../games/secret-rule/cards.js';
 
 /** Build a card element. opts: { size: 'sm'|'md'|'lg', dim: bool, order: number } */
 export function cardEl(id, opts = {}) {
-  const c = CARD_BY_ID[id];
+  const c = getCard(id);
   const el = document.createElement('div');
   el.className = `card card-${c.color} card-${opts.size || 'md'}${opts.dim ? ' card-dim' : ''}`;
   el.dataset.id = id;

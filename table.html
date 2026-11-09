@@ -30,13 +30,13 @@
         <h2 style="margin:0">ผู้เล่น (<span id="pcount">0</span>)</h2>
         <div class="players" id="lobby-players"><div class="muted">รอเพื่อนเข้าห้อง…</div></div>
         <div class="settings">
-          <label for="level">ความยากของกฎ</label>
-          <select id="level">
-            <option value="1">ระดับ 1 — ง่าย</option>
-            <option value="2">ระดับ 2</option>
-            <option value="3">ระดับ 3 — ยาก</option>
-            <option value="random">สุ่ม</option>
-          </select>
+          <label for="opt-animals">สัตว์</label>
+          <select id="opt-animals"></select>
+          <label for="opt-numbers">เลข</label>
+          <select id="opt-numbers"></select>
+          <label for="level">กฎ</label>
+          <select id="level"></select>
+          <div class="muted rule-count" id="rule-count"></div>
         </div>
         <button class="primary" id="start" disabled>เริ่มเกม</button>
         <div class="muted" id="start-hint">ต้องมีผู้เล่นอย่างน้อย 2 คน</div>

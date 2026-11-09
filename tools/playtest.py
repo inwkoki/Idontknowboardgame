@@ -32,7 +32,10 @@ with sync_playwright() as p:
 
     tv.wait_for_function("document.querySelectorAll('#lobby-players .player').length === 4", timeout=15000)
     tv.screenshot(path="/tmp/sr-shot-lobby.png")
-    tv.select_option("#level", "2")
+    import os as _os
+    tv.select_option("#opt-animals", _os.environ.get("ANIMALS", "all"))
+    tv.select_option("#opt-numbers", _os.environ.get("MAXN", "9"))
+    tv.select_option("#level", _os.environ.get("LEVEL", "2"))
     tv.click("#start")
     tv.wait_for_selector("#game:not(.hidden)")
     time.sleep(0.5)
@@ -49,11 +52,11 @@ with sync_playwright() as p:
         # pick a fitting card using the host's rule (bot), else trade in
         idx = tv.evaluate("""async (pid) => {
             const { RULE_BY_ID } = await import('./games/secret-rule/rules.js');
-            const { CARD_BY_ID } = await import('./games/secret-rule/cards.js');
+            const { getCard } = await import('./games/secret-rule/cards.js');
             const g = window.__sr.game; const r = RULE_BY_ID[g.secretRuleId];
             const p = g.players.find(x => x.id === pid);
-            const prev = CARD_BY_ID[g.line.at(-1)];
-            const fit = p.hand.map((id, i) => r.test(CARD_BY_ID[id], prev, []) ? i : -1).filter(i => i >= 0);
+            const prev = getCard(g.line.at(-1));
+            const fit = p.hand.map((id, i) => r.test(getCard(id), prev, [], g.ctx) ? i : -1).filter(i => i >= 0);
             return { fit, n: p.hand.length };
         }""", g["pid"])
         before = tv.evaluate("window.__sr.game.log.length")

@@ -26,6 +26,7 @@ export const ANIMALS = [
   { id: 'bat', emoji: '🦇', th: 'ค้างคาว', habitat: 'sky' },
   { id: 'eagle', emoji: '🦅', th: 'อินทรี', habitat: 'sky' },
 ];
+export const ANIMAL_BY_ID = Object.fromEntries(ANIMALS.map((a) => [a.id, a]));
 
 // Shape marks keep colours distinguishable for colour-blind players.
 export const COLORS = {
@@ -35,32 +36,68 @@ export const COLORS = {
   blue: { th: 'ฟ้า', mark: '◆' },
 };
 
-export const DECK_SEED = 20261109;
+/** Deck options chosen in the lobby. */
+export const ANIMAL_SETS = {
+  all: { th: 'สัตว์ 18 ตัว', ids: ANIMALS.map((a) => a.id) },
+  four: { th: 'สัตว์ 4 ตัว (ง่าย)', ids: ['elephant', 'cat', 'fish', 'bird'] },
+};
+export const NUMBER_RANGES = {
+  9: { th: 'เลข 1–9' },
+  6: { th: 'เลข 1–6 (ง่าย)' },
+};
+export const DEFAULT_DECK = { animals: 'all', maxN: 9 };
 
-/** The same 72 cards every game: 18 animals × 4 colours, numbers 1–9 eight times each. */
-export function buildDeck() {
+export const DECK_SEED = 20261109;
+const TARGET_SIZE = 72;
+
+/**
+ * Card ids describe the card ("elephant.red.7.0" = animal.color.number.copy), so any screen can
+ * draw any card without knowing which deck options the host picked.
+ */
+export function cardId(animal, color, n, copy) {
+  return `${animal}.${color}.${n}.${copy}`;
+}
+
+const cache = new Map();
+export function getCard(id) {
+  let c = cache.get(id);
+  if (!c) {
+    const [animal, color, n] = id.split('.');
+    const a = ANIMAL_BY_ID[animal];
+    if (!a || !COLORS[color]) throw new Error(`bad card id ${id}`);
+    c = { id, animal, emoji: a.emoji, nameTh: a.th, habitat: a.habitat, color, n: Number(n) };
+    cache.set(id, c);
+  }
+  return c;
+}
+
+/**
+ * Same deck for the same options, every game.
+ * Every animal × colour pair appears equally often (≈72 cards total), numbers 1..maxN spread evenly.
+ */
+export function buildDeck(opts = DEFAULT_DECK) {
+  const { animals = 'all', maxN = 9 } = opts;
+  const ids = ANIMAL_SETS[animals].ids;
+  const colors = Object.keys(COLORS);
+  const pairs = ids.length * colors.length;
+  const copies = Math.max(1, Math.round(TARGET_SIZE / pairs));
+  const size = pairs * copies;
   const numbers = shuffle(
-    Array.from({ length: 72 }, (_, i) => (i % 9) + 1),
-    mulberry32(DECK_SEED),
+    Array.from({ length: size }, (_, i) => (i % maxN) + 1),
+    mulberry32(DECK_SEED + maxN * 100 + ids.length),
   );
   const cards = [];
   let i = 0;
-  for (const a of ANIMALS) {
-    for (const color of Object.keys(COLORS)) {
-      cards.push({
-        id: `c${i}`,
-        animal: a.id,
-        emoji: a.emoji,
-        nameTh: a.th,
-        habitat: a.habitat,
-        color,
-        n: numbers[i],
-      });
-      i++;
+  for (let copy = 0; copy < copies; copy++) {
+    for (const animal of ids) {
+      for (const color of colors) {
+        cards.push(getCard(cardId(animal, color, numbers[i++], copy)));
+      }
     }
   }
   return cards;
 }
 
-export const CARDS = buildDeck();
-export const CARD_BY_ID = Object.fromEntries(CARDS.map((c) => [c.id, c]));
+export function deckLabel(opts = DEFAULT_DECK) {
+  return `${ANIMAL_SETS[opts.animals].th} · ${NUMBER_RANGES[opts.maxN].th}`;
+}

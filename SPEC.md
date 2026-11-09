@@ -114,7 +114,7 @@ Phase: `lobby → dealing → turn → (guessing) → ended`
 - ถูก → `ended` ชนะ · ผิด → ตัวเลือกชุดเดิมส่งต่อให้คนถัดไป (ตามเข็มนาฬิกา) ทาย ไปเรื่อย ๆ จนมีคนถูก
 - Setting `revealWrongGuess` (default `false`): ถ้า `true` ตัวเลือกที่ผิดจะถูกตัดออกและประกาศบนทีวี
 
-**Settings** (เลือกใน lobby): `level`, `handSize`=7, `revealWrongGuess`=false, `showRejects`=`'all'|'last'` (default `'all'`), `turnTimerSec`=0 (ปิด)
+**Settings** (เลือกใน lobby): `deck: {animals: 'all'|'four', maxN: 9|6}`, `level` (1, 2, 3, `trick`, `random`), `handSize`=7, `revealWrongGuess`=false, `showRejects`=`'all'|'last'` (default `'all'`), `turnTimerSec`=0 (ปิด)
 
 ## 7. Network
 
@@ -205,6 +205,10 @@ create policy "friends rw" on rooms for all using (true) with check (true);
 
 - [x] ปุ่ม **ยอมแพ้ · เฉลยกฎ** บนทีวี (กด 2 ครั้งภายใน 4 วิ) → จบเกมแบบไม่มีผู้ชนะ เฉลยกฎทั้งทีวีและมือถือ (`giveUp()` ใน engine, host-only)
 - [x] Lobby ทีวีมีแผง **ไพ่ในเกมนี้**: เลข 1–9, 4 สีพร้อมสัญลักษณ์, สัตว์ 18 ตัวแบ่งตามถิ่น, ตัวอย่างการ์ด, วิธีเล่นสั้น ๆ ให้อ่านระหว่างรอเพื่อนเข้าห้อง
+
+- [x] **ตัวเลือกเด็คใน lobby** (จำค่าไว้ในเครื่อง host): สัตว์ 18 ตัว / 4 ตัว (ช้าง แมว ปลา นก) × เลข 1–9 / 1–6 — id การ์ดบอกคุณสมบัติในตัว (`elephant.red.7.0`) มือถือจึงวาดการ์ดได้ทุกเด็ค; เด็ค 4 ตัวมี 80 ใบ (สัตว์×สี ละ 5 ใบ)
+- [x] **กฎพิเศษ (level `trick`)** ใช้ข้อมูลวันที่เริ่มเกม: เลขในปี ค.ศ. / พ.ศ., เลขคู่-คี่ตามวันที่, เลขในวันที่+เดือน, เลขไม่เกินจำนวนคนเล่น — ตอนเฉลยแสดงค่าจริง เช่น "เลขที่อยู่ในปี ค.ศ. 2026 (คือ 2 หรือ 6)"
+- [x] `rulesFor({level, deck, ctx})` คัดกฎอัตโนมัติ: เก็บเฉพาะกฎที่ผ่าน 20–70% ของเด็คที่เลือก ไม่ซ้ำพฤติกรรมกัน และข้ามกฎที่ข้อความพูดถึงเลขที่เด็คไม่มี (`minN`) — lobby แสดงจำนวนกฎที่สุ่มได้
 
 Test params: `?net=local` (ไม่ใช้ Supabase), `hand.html?seat=N` (หลายแท็บในเบราว์เซอร์เดียวเป็นคนละคน), `table.html?debug` (เปิด `window.__sr` ให้สคริปต์เทสอ่าน state — ห้ามใช้ตอนเล่นจริง)
 
