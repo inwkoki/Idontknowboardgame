@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, applyAction, publicState, handOf, giveUp } from '../games/secret-rule/engine.js';
+import { createGame, applyAction, publicState, handOf, giveUp, skipTurn } from '../games/secret-rule/engine.js';
 import { getCard, buildDeck } from '../games/secret-rule/cards.js';
 import { RULE_BY_ID } from '../games/secret-rule/rules.js';
 
@@ -124,6 +124,23 @@ test('a 4-animal 1–6 game deals only those cards', () => {
     assert.ok(['elephant', 'cat', 'fish', 'bird'].includes(getCard(id).animal));
     assert.ok(getCard(id).n <= 6);
   }
+});
+
+test('skipping a turn passes it on and logs it', () => {
+  const s = newGame();
+  const { state, events } = skipTurn(s);
+  assert.equal(state.turn, 1);
+  assert.equal(state.log.at(-1).kind, 'skip');
+  assert.equal(handOf(state, 'a').length, 7);
+  assert.equal(events[1].playerId, 'b');
+  assert.equal(skipTurn(giveUp(s).state).events.length, 0);
+});
+
+test('a game survives JSON round-trip (host saves it to localStorage)', () => {
+  const s = newGame('odd');
+  const back = JSON.parse(JSON.stringify(s));
+  const id = handOf(back, 'a')[0];
+  assert.deepEqual(applyAction(back, { type: 'play', playerId: 'a', cardIds: [id] }).state.turn, 1);
 });
 
 test('public state never contains hands or the secret rule mid-game', () => {

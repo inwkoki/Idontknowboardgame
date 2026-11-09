@@ -18,6 +18,8 @@ let hand = [];
 let selected = []; // card ids in chosen order
 let lastTurnMine = false;
 let joinTimer = null;
+let lastHostMsgAt = 0; // last time anything arrived from the TV
+let hostOnline = false;
 // Browsers only allow vibrate() after the user has touched the page.
 let userTapped = false;
 addEventListener('pointerdown', () => (userTapped = true), { once: true });
@@ -60,23 +62,78 @@ async function join() {
   for (const id of ['top', 'status', 'tail', 'hand', 'actions']) show(id);
   $('me').textContent = name;
   $('room').textContent = `ห้อง ${code}`;
+  lastHostMsgAt = Date.now();
   sendJoin();
-  // Keep knocking until the host has us (host may open after us, or reload).
+  // Knock fast until the host has us (it may open after us, or reload), then ping every 12 s.
+  // The host answers every knock with the latest state + our hand, so a missed message heals itself.
+  let tick = 0;
   joinTimer = setInterval(() => {
-    if (!state || !state.players.some((p) => p.id === me.playerId)) sendJoin();
+    tick++;
+    const seated = state?.players.some((p) => p.id === me.playerId);
+    if (!seated || tick % 5 === 0) sendJoin();
+    // Only redraw when the connection state flips — redrawing the hand mid-tap would eat the tap.
+    if (offline() !== document.body.classList.contains('offline')) render();
   }, 2500);
   keepAwake();
 }
 
+// Back to the join form (change room or name). Before the game starts this frees your seat;
+// mid-game your seat stays and you can come back with the same room code.
+let leaveArmed = null;
+$('btn-leave').onclick = () => {
+  if (!leaveArmed) {
+    $('btn-leave').textContent = 'แตะอีกครั้งเพื่อออก';
+    $('btn-leave').classList.add('armed');
+    leaveArmed = setTimeout(disarmLeave, 3000);
+    return;
+  }
+  disarmLeave();
+  leave();
+};
+function disarmLeave() {
+  clearTimeout(leaveArmed);
+  leaveArmed = null;
+  $('btn-leave').textContent = '← ออก';
+  $('btn-leave').classList.remove('armed');
+}
+function leave() {
+  try {
+    net?.send('leave', { playerId: me.playerId });
+  } catch {
+    /* already offline */
+  }
+  clearInterval(joinTimer);
+  const old = net;
+  setTimeout(() => old?.close(), 300); // let the leave message go out first
+  net = null;
+  state = null;
+  hand = [];
+  selected = [];
+  document.body.classList.remove('my-turn');
+  for (const id of ['top', 'status', 'tail', 'hand', 'actions', 'ended']) show(id, false);
+  show('join-form');
+  $('in-code').value = code;
+  $('join-msg').textContent = '';
+  history.replaceState(null, '', `?${mode === 'local' ? 'net=local' : ''}${params.get('seat') ? `&seat=${params.get('seat')}` : ''}`);
+}
+
 function sendJoin() {
-  net.send('join', { playerId: me.playerId, secret: me.secret, name: me.name });
+  net?.send('join', { playerId: me.playerId, secret: me.secret, name: me.name });
 }
 
 function wire() {
   net.on('state', (s) => {
     state = s;
+    lastHostMsgAt = Date.now();
     render();
   });
+  net.onPresence((keys) => {
+    const was = hostOnline;
+    hostOnline = keys.includes('host');
+    if (hostOnline && !was) sendJoin(); // the TV came (back) online — say hi
+    render();
+  });
+  net.onReconnect?.(() => sendJoin());
   net.onPrivate('hand', ({ cards }) => {
     hand = cards;
     selected = selected.filter((id) => hand.includes(id));
@@ -133,8 +190,15 @@ function lockButtons() {
 const isMyTurn = () => state?.phase === 'turn' && state.turnPlayerId === me?.playerId;
 
 // ---------- render ----------
+const offline = () => Date.now() - lastHostMsgAt > 30000;
+
 function render() {
-  if (!state) return;
+  if (!net) return;
+  document.body.classList.toggle('offline', offline());
+  if (!state) {
+    $('status').textContent = offline() ? 'ยังไม่เจอโต๊ะ — เปิดหน้าทีวีหรือยัง? เช็ครหัสห้องด้วย' : 'กำลังเข้าห้อง…';
+    return;
+  }
   const mine = isMyTurn();
   document.body.classList.toggle('my-turn', mine);
   if (mine && !lastTurnMine && userTapped) navigator.vibrate?.(200);
@@ -152,7 +216,9 @@ function render() {
   }
 
   const inGame = state.players.some((p) => p.id === me.playerId);
-  if (state.phase === 'lobby') {
+  if (offline()) {
+    $('status').textContent = 'ขาดการเชื่อมต่อกับโต๊ะ กำลังต่อใหม่…';
+  } else if (state.phase === 'lobby') {
     $('status').textContent = inGame ? 'อยู่ในห้องแล้ว รอโต๊ะเริ่มเกม…' : 'กำลังเข้าห้อง…';
   } else if (!inGame) {
     $('status').textContent = 'เกมเริ่มไปแล้ว ดูบนทีวีได้เลย';
@@ -215,6 +281,6 @@ async function keepAwake() {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     keepAwake();
-    if (net && me) net.send('sync', { playerId: me.playerId });
+    if (net && me) sendJoin();
   }
 });

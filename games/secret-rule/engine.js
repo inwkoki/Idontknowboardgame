@@ -154,6 +154,16 @@ function draw(state, n) {
   return out;
 }
 
+/** Host-only: pass the turn on (e.g. that player's phone dropped out). */
+export function skipTurn(prev) {
+  if (!prev || prev.phase !== 'turn') return { state: prev, events: [] };
+  const state = structuredClone(prev);
+  const skipped = state.players[state.turn].id;
+  pushLog(state, { playerId: skipped, kind: 'skip', ok: false, count: 0 });
+  nextTurn(state);
+  return { state, events: [{ type: 'skipped', playerId: skipped }, { type: 'turn', playerId: state.players[state.turn].id }] };
+}
+
 /** The table gives up: end the game with no winner and reveal the rule. Host-only, never sent by phones. */
 export function giveUp(prev) {
   if (!prev || prev.phase !== 'turn') return { state: prev, events: [] };
