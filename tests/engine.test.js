@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, applyAction, publicState, handOf } from '../games/secret-rule/engine.js';
+import { createGame, applyAction, publicState, handOf, giveUp } from '../games/secret-rule/engine.js';
 import { CARD_BY_ID } from '../games/secret-rule/cards.js';
 import { RULE_BY_ID } from '../games/secret-rule/rules.js';
 
@@ -90,6 +90,19 @@ test('emptying your hand ends the game and reveals the rule', () => {
   assert.equal(state.winnerId, 'a');
   assert.ok(events.some((e) => e.type === 'ended'));
   assert.equal(publicState(state).secretRule.id, 'odd');
+});
+
+test('giving up ends the game with no winner and reveals the rule', () => {
+  const s = newGame('odd');
+  const { state, events } = giveUp(s);
+  assert.equal(state.phase, 'ended');
+  assert.equal(state.winnerId, null);
+  const pub = publicState(state);
+  assert.equal(pub.gaveUp, true);
+  assert.equal(pub.secretRule.id, 'odd');
+  assert.equal(events[0].gaveUp, true);
+  // no effect once the game is over
+  assert.equal(giveUp(state).state, state);
 });
 
 test('public state never contains hands or the secret rule mid-game', () => {

@@ -203,6 +203,9 @@ create policy "friends rw" on rooms for all using (true) with check (true);
 - [x] เทส: 1 แท็บ table + 4 แท็บ hand ด้วย `?net=local` เล่นจนจบได้ (`tools/playtest.py`)
 - [x] ย้ายมาจาก MVP 2 เพราะจำเป็น (ไม่มีแล้วเกมค้างได้): play หลายใบตามลำดับ, trade, discard/reshuffle
 
+- [x] ปุ่ม **ยอมแพ้ · เฉลยกฎ** บนทีวี (กด 2 ครั้งภายใน 4 วิ) → จบเกมแบบไม่มีผู้ชนะ เฉลยกฎทั้งทีวีและมือถือ (`giveUp()` ใน engine, host-only)
+- [x] Lobby ทีวีมีแผง **ไพ่ในเกมนี้**: เลข 1–9, 4 สีพร้อมสัญลักษณ์, สัตว์ 18 ตัวแบ่งตามถิ่น, ตัวอย่างการ์ด, วิธีเล่นสั้น ๆ ให้อ่านระหว่างรอเพื่อนเข้าห้อง
+
 Test params: `?net=local` (ไม่ใช้ Supabase), `hand.html?seat=N` (หลายแท็บในเบราว์เซอร์เดียวเป็นคนละคน), `table.html?debug` (เปิด `window.__sr` ให้สคริปต์เทสอ่าน state — ห้ามใช้ตอนเล่นจริง)
 
 ### MVP 2 — กติกาครบ

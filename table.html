@@ -25,6 +25,7 @@
         <div class="qr" id="qr"></div>
         <div class="url muted" id="join-url"></div>
       </div>
+      <div class="info" id="deck-info"></div>
       <div class="side">
         <h2 style="margin:0">ผู้เล่น (<span id="pcount">0</span>)</h2>
         <div class="players" id="lobby-players"><div class="muted">รอเพื่อนเข้าห้อง…</div></div>
@@ -50,12 +51,13 @@
       <div id="chips" style="display:flex;gap:1rem"></div>
       <span class="spacer"></span>
       <div id="log"></div>
+      <button id="giveup" class="giveup">ยอมแพ้ · เฉลยกฎ</button>
     </footer>
   </div>
 
   <div id="ended" class="hidden">
     <div class="panel">
-      <div class="muted" style="font-size:1.6rem">ผู้ชนะ</div>
+      <div class="muted" style="font-size:1.6rem" id="winner-label">ผู้ชนะ</div>
       <div class="who" id="winner"></div>
       <div class="muted" style="font-size:1.6rem">กฎลับคือ</div>
       <div class="rule" id="rule"></div>

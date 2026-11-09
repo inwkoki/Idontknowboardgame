@@ -150,6 +150,16 @@ function draw(state, n) {
   return out;
 }
 
+/** The table gives up: end the game with no winner and reveal the rule. Host-only, never sent by phones. */
+export function giveUp(prev) {
+  if (!prev || prev.phase !== 'turn') return { state: prev, events: [] };
+  const state = structuredClone(prev);
+  state.phase = 'ended';
+  state.winnerId = null;
+  state.gaveUp = true;
+  return { state, events: [{ type: 'ended', winnerId: null, gaveUp: true }] };
+}
+
 /** What every screen may see. The secret rule is only revealed once the game has ended. */
 export function publicState(state) {
   return {
@@ -164,6 +174,7 @@ export function publicState(state) {
     log: state.log,
     round: state.round,
     winnerId: state.winnerId,
+    gaveUp: !!state.gaveUp,
     secretRule:
       state.phase === 'ended'
         ? { id: state.secretRuleId, th: RULE_BY_ID[state.secretRuleId].th }

@@ -16,10 +16,10 @@ header .code { font-weight: 800; letter-spacing: 0.2em; color: var(--accent); }
 header .spacer { flex: 1; }
 
 /* ---------- lobby ---------- */
-#lobby { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; padding: 3rem 4rem; align-items: start; }
+#lobby { display: grid; grid-template-columns: 0.8fr 1.6fr 0.8fr; gap: 2rem; padding: 2rem 2.5rem; align-items: start; overflow: auto; }
 #lobby .join { text-align: center; display: grid; gap: 1rem; justify-items: center; }
-#lobby .big-code { font-size: 7rem; font-weight: 800; letter-spacing: 0.15em; line-height: 1; color: var(--accent); }
-#lobby .qr { background: #fff; padding: 0.8rem; border-radius: 1rem; width: 16rem; height: 16rem; }
+#lobby .big-code { font-size: 5.5rem; font-weight: 800; letter-spacing: 0.15em; line-height: 1; color: var(--accent); }
+#lobby .qr { background: #fff; padding: 0.8rem; border-radius: 1rem; width: 14rem; height: 14rem; }
 #lobby .qr svg { width: 100%; height: 100%; display: block; }
 #lobby .url { font-size: 0.9rem; word-break: break-all; }
 #lobby .side { display: grid; gap: 1.5rem; }
@@ -27,7 +27,8 @@ header .spacer { flex: 1; }
 #lobby .player { background: var(--surface); border: 1px solid var(--line); border-radius: 1rem; padding: 0.8rem 1.2rem; font-size: 1.4rem; display: flex; gap: 0.8rem; align-items: center; }
 .dot { width: 0.7rem; height: 0.7rem; border-radius: 50%; background: var(--muted); flex: none; }
 .dot.on { background: var(--ok); }
-#lobby .settings { display: flex; gap: 1rem; align-items: center; font-size: 1.3rem; }
+#lobby .settings { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: center; font-size: 1.2rem; }
+#lobby .settings label { white-space: nowrap; }
 #lobby button.primary { font-size: 1.8rem; padding: 0.8rem 2rem; }
 
 /* ---------- game ---------- */
@@ -85,3 +86,27 @@ header .spacer { flex: 1; }
 #toast.show { opacity: 1; }
 #toast.ok { background: var(--ok); color: #0b0d12; }
 #toast.bad { background: var(--bad); color: #0b0d12; }
+
+/* ---------- lobby: what's on the cards ---------- */
+#lobby .info { display: grid; gap: 1.1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 1.2rem; padding: 1.4rem 1.6rem; }
+#lobby .info h2 { margin: 0; font-size: 1.5rem; }
+#lobby .info .lead { font-size: 1rem; margin: 0.2rem 0 0; }
+.info-row { display: grid; grid-template-columns: 3.5rem 1fr; gap: 1rem; align-items: center; }
+.info-row .k { font-weight: 800; font-size: 1.2rem; }
+.info-row .v { display: flex; flex-wrap: wrap; gap: 0.45rem 0.8rem; align-items: center; font-size: 1.15rem; }
+.num-chip { width: 1.9rem; height: 1.9rem; border-radius: 0.5rem; background: var(--surface-2); display: grid; place-items: center; font-weight: 800; }
+.color-chip { display: inline-flex; gap: 0.35rem; align-items: center; }
+.color-chip .sw { width: 1.4rem; height: 1.4rem; border-radius: 0.35rem; display: grid; place-items: center; font-size: 0.8rem; color: #0b0d12; }
+.habitat { display: grid; grid-template-columns: 3rem 1fr; gap: 0.6rem; align-items: center; width: 100%; }
+.habitat .h { color: var(--muted); font-size: 1rem; }
+.habitat .animals { display: flex; flex-wrap: nowrap; gap: 0.6rem; }
+.animal { display: inline-flex; gap: 0.25rem; align-items: center; }
+.animal .e { font-size: 1.5rem; }
+.animal .t { font-size: 0.95rem; color: var(--muted); white-space: nowrap; }
+.info .example { display: flex; gap: 1rem; align-items: center; }
+.info .example .card { --w: 3.4rem; }
+.info-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.info .tips { margin: 0; padding-left: 1.2rem; font-size: 1.05rem; color: var(--muted); display: grid; gap: 0.3rem; }
+
+button.giveup { font-size: 1rem; padding: 0.5rem 1rem; color: var(--muted); }
+button.giveup.armed { background: var(--bad); border-color: var(--bad); color: #0b0d12; font-weight: 800; }

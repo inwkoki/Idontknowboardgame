@@ -4,7 +4,8 @@
 import { createRoomNet, pickMode } from './shared/net.js';
 import { roomCode, normalizeRoomCode, randomSeed } from './shared/util.js';
 import { cardEl } from './shared/cardview.js';
-import { createGame, applyAction, publicState, handOf } from './games/secret-rule/engine.js';
+import { createGame, applyAction, publicState, handOf, giveUp } from './games/secret-rule/engine.js';
+import { ANIMALS, COLORS, HABITATS, CARDS } from './games/secret-rule/cards.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -81,9 +82,33 @@ function handleAction(action) {
 net.on('play', ({ playerId, cardIds }) => handleAction({ type: 'play', playerId, cardIds }));
 net.on('trade', ({ playerId }) => handleAction({ type: 'trade', playerId }));
 
+// ---------- give up: reveal the rule, nobody wins ----------
+// Tap twice within 4 s so a stray click can't end the game.
+let giveUpArmed = null;
+$('giveup').onclick = () => {
+  if (!game || game.phase !== 'turn') return;
+  if (!giveUpArmed) {
+    $('giveup').classList.add('armed');
+    $('giveup').textContent = 'กดอีกครั้งเพื่อเฉลย';
+    giveUpArmed = setTimeout(disarmGiveUp, 4000);
+    return;
+  }
+  disarmGiveUp();
+  game = giveUp(game).state;
+  broadcastState();
+  render();
+};
+function disarmGiveUp() {
+  clearTimeout(giveUpArmed);
+  giveUpArmed = null;
+  $('giveup').classList.remove('armed');
+  $('giveup').textContent = 'ยอมแพ้ · เฉลยกฎ';
+}
+
 // ---------- lobby controls ----------
 $('start').onclick = startGame;
 $('again').onclick = () => {
+  disarmGiveUp();
   game = null;
   render();
   startGame();
@@ -116,6 +141,40 @@ function render() {
   if (inGame) renderGame();
   else renderLobby();
 }
+
+// What's on the cards — something to read while friends join.
+function renderDeckInfo() {
+  const el = $('deck-info');
+  const nums = Array.from({ length: 9 }, (_, i) => `<span class="num-chip">${i + 1}</span>`).join('');
+  const colors = Object.entries(COLORS)
+    .map(([k, c]) => `<span class="color-chip"><span class="sw" style="background:var(--${k})">${c.mark}</span>${c.th}</span>`)
+    .join('');
+  const habitats = Object.entries(HABITATS)
+    .map(([h, info]) => {
+      const animals = ANIMALS.filter((a) => a.habitat === h)
+        .map((a) => `<span class="animal"><span class="e">${a.emoji}</span><span class="t">${a.th}</span></span>`)
+        .join('');
+      return `<div class="habitat"><span class="h">${info.th}</span><span class="animals">${animals}</span></div>`;
+    })
+    .join('');
+  el.innerHTML = `
+    <div class="info-head">
+      <div><h2>ไพ่ในเกมนี้</h2><p class="lead muted">${CARDS.length} ใบ · กฎลับใช้ เลข สี สัตว์ หรือถิ่นของมัน</p></div>
+      <div class="example" id="example-cards"></div>
+    </div>
+    <div class="info-row"><span class="k">เลข</span><span class="v">${nums}</span></div>
+    <div class="info-row"><span class="k">สี</span><span class="v">${colors}</span></div>
+    <div class="info-row"><span class="k">สัตว์</span><span class="v" style="display:grid;gap:0.3rem">${habitats}</span></div>
+    <ul class="tips">
+      <li>ลงไพ่ที่คิดว่าผ่านกฎ — ผ่านจะต่อแถว ไม่ผ่านจะแขวนไว้ใต้แถว</li>
+      <li>ลงหลายใบพร้อมกันได้ แต่ต้องผ่านทุกใบตามลำดับ</li>
+      <li>ไม่มีใบไหนผ่านจริง? กด "ไม่มีใบไหนผ่าน" จะได้ไพ่ลดลง 1 ใบ</li>
+      <li>ใครหมดมือก่อนชนะ · ยอมแพ้เมื่อไหร่ก็เฉลยกฎได้</li>
+    </ul>`;
+  const ex = $('example-cards');
+  for (const id of ['c0', 'c29', 'c58']) ex.append(cardEl(id, { size: 'sm' }));
+}
+renderDeckInfo();
 
 let qrDone = false;
 function renderLobby() {
@@ -208,8 +267,10 @@ function renderGame() {
     log.append(row);
   }
 
+  $('giveup').classList.toggle('hidden', pub.phase !== 'turn');
   if (pub.phase === 'ended') {
-    $('winner').textContent = `🏆 ${nameOf(pub.winnerId)}`;
+    $('winner-label').textContent = pub.gaveUp ? 'ทั้งโต๊ะยอมแพ้' : 'ผู้ชนะ';
+    $('winner').textContent = pub.gaveUp ? '🏳️ ไม่มีใครชนะ' : `🏆 ${nameOf(pub.winnerId)}`;
     $('rule').textContent = pub.secretRule.th;
   }
 }
