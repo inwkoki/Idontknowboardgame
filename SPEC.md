@@ -30,6 +30,8 @@
 /table.html  /table.js          HOST + จอทีวี (เปิดบนโน้ตบุ๊กที่ต่อทีวี)
 /hand.html   /hand.js           มือถือผู้เล่น
 /style/base.css  table.css  hand.css
+/vendor/qrcode.js               qrcode-generator 1.4.4 (MIT) — เก็บใน repo ไม่พึ่ง CDN
+/tools/playtest.py              playtest อัตโนมัติด้วย Playwright
 /config.js                      SUPABASE_URL, SUPABASE_ANON_KEY (ค่าว่าง = ใช้ได้แค่ local mode)
 /shared/net.js                  createRoomNet(code, {mode:'supabase'|'local'}) → {send, on, presence, close}
 /shared/input.js                keyboard + Gamepad API → events 'accept' | 'decline' | 'start'
@@ -159,7 +161,7 @@ create policy "friends rw" on rooms for all using (true) with check (true);
 
 ## 8. จอทีวี (`table.html`, 1920×1080, ดูจากระยะ 3 เมตร)
 
-- **Lobby**: รหัสห้อง 4 ตัวอักษรตัวใหญ่ + QR code ไปที่ `hand.html?room=CODE` (ใช้ lib QR เล็ก ๆ จาก CDN), รายชื่อผู้เล่น + สถานะออนไลน์, เลือก settings, ปุ่ม "เริ่มเกม" (คลิกนี้ปลดล็อกเสียง autoplay ด้วย)
+- **Lobby**: รหัสห้อง 4 ตัวอักษรตัวใหญ่ + QR code ไปที่ `hand.html?room=CODE` (`vendor/qrcode.js`), รายชื่อผู้เล่น + สถานะออนไลน์, เลือก settings, ปุ่ม "เริ่มเกม" (คลิกนี้ปลดล็อกเสียง autoplay ด้วย)
 - **ระหว่างเล่น**:
   - แถวการ์ดที่ผ่าน เรียงซ้าย→ขวา ตัดขึ้นบรรทัดใหม่เมื่อเต็ม
   - **Rejects แขวนอยู่ใต้การ์ดที่มันถูกลองต่อ** (สีจางลง) — ช่วยให้คนเดาได้
@@ -192,16 +194,18 @@ create policy "friends rw" on rooms for all using (true) with check (true);
 ## 11. Milestones
 
 ### MVP 1 — เล่นได้ครบลูป
-- [ ] `cards.js`, `util.js` + tests (72 ใบ, เลขแต่ละค่า 8 ใบ, deterministic)
-- [ ] `rules.js` level 1–3 อย่างน้อย 24 ข้อ + `sim.js` validation
-- [ ] `engine.js`: setup, play 1 ใบ, ตัดสิน, เปลี่ยนตา, มือหมด → ended (ยังไม่ต้องทาย) + tests
-- [ ] `net.js` local mode (BroadcastChannel) + supabase mode
-- [ ] `table.html` lobby + แถวการ์ด + rejects + แถบผู้เล่น
-- [ ] `hand.html` join + มือ + ลง 1 ใบ
-- [ ] เทส: 1 แท็บ table + 4 แท็บ hand ด้วย `?net=local` เล่นจนจบได้
+- [x] `cards.js`, `util.js` + tests (72 ใบ, เลขแต่ละค่า 8 ใบ, deterministic)
+- [x] `rules.js` level 1–3 อย่างน้อย 24 ข้อ + `sim.js` validation
+- [x] `engine.js`: setup, play, ตัดสิน, เปลี่ยนตา, มือหมด → ended (ยังไม่ต้องทาย) + tests
+- [x] `net.js` local mode (BroadcastChannel) + supabase mode (supabase ยังไม่ได้เทสจริง)
+- [x] `table.html` lobby + QR + แถวการ์ด + rejects + แถบผู้เล่น
+- [x] `hand.html` join + มือ + ลงไพ่
+- [x] เทส: 1 แท็บ table + 4 แท็บ hand ด้วย `?net=local` เล่นจนจบได้ (`tools/playtest.py`)
+- [x] ย้ายมาจาก MVP 2 เพราะจำเป็น (ไม่มีแล้วเกมค้างได้): play หลายใบตามลำดับ, trade, discard/reshuffle
+
+Test params: `?net=local` (ไม่ใช้ Supabase), `hand.html?seat=N` (หลายแท็บในเบราว์เซอร์เดียวเป็นคนละคน), `table.html?debug` (เปิด `window.__sr` ให้สคริปต์เทสอ่าน state — ห้ามใช้ตอนเล่นจริง)
 
 ### MVP 2 — กติกาครบ
-- [ ] play หลายใบตามลำดับ, trade, discard/reshuffle
 - [ ] guessing + ตัวหลอก + ส่งต่อคนถัดไป
 - [ ] กฎ level 4–5 (รวม 40 ข้อ)
 - [ ] settings ใน lobby

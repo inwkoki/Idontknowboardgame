@@ -1,0 +1,10 @@
+{
+  "name": "secret-rule",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "sim": "node games/secret-rule/sim.js",
+    "serve": "python3 -m http.server 8080"
+  }
+}
