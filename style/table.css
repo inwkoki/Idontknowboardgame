@@ -100,9 +100,7 @@ header .spacer { flex: 1; }
 .num-chip { width: 1.9rem; height: 1.9rem; border-radius: 0.5rem; background: var(--surface-2); display: grid; place-items: center; font-weight: 800; }
 .color-chip { display: inline-flex; gap: 0.35rem; align-items: center; }
 .color-chip .sw { width: 1.4rem; height: 1.4rem; border-radius: 0.35rem; display: grid; place-items: center; font-size: 0.8rem; color: #0b0d12; }
-.habitat { display: grid; grid-template-columns: 3rem 1fr; gap: 0.6rem; align-items: center; width: 100%; }
-.habitat .h { color: var(--muted); font-size: 1rem; }
-.habitat .animals { display: flex; flex-wrap: nowrap; gap: 0.6rem; }
+.info-row .v.animals { display: grid; grid-template-columns: repeat(6, max-content); gap: 0.35rem 0.8rem; }
 .animal { display: inline-flex; gap: 0.25rem; align-items: center; }
 .animal .e { font-size: 1.5rem; }
 .animal .t { font-size: 0.95rem; color: var(--muted); white-space: nowrap; }

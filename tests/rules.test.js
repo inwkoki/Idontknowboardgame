@@ -6,6 +6,13 @@ import { deckOptions } from '../games/secret-rule/sim.js';
 
 const CTX = { year: 2026, month: 11, day: 9, players: 4 };
 
+test('no rule mentions habitat (removed as too hard)', () => {
+  for (const r of RULES) {
+    assert.ok(!/บก|น้ำ|ฟ้า \(บิน|สัตว์ฟ้า/.test(ruleText(r, CTX)), r.id);
+    assert.ok(!String(r.test).includes('habitat'), r.id);
+  }
+});
+
 test('rule ids are unique and every rule has Thai text', () => {
   assert.equal(new Set(RULES.map((r) => r.id)).size, RULES.length);
   for (const r of RULES) assert.ok(ruleText(r, CTX).length > 0, r.id);
