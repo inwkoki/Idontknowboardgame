@@ -59,3 +59,7 @@ body:not(.my-turn) #hand .card { cursor: default; }
 #toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 #toast.ok { background: var(--ok); color: #0b0d12; }
 #toast.bad { background: var(--bad); color: #0b0d12; }
+
+.top .leave { font-size: 14px; padding: 6px 12px; border-radius: 10px; color: var(--muted); }
+.top .leave.armed { background: var(--bad); border-color: var(--bad); color: #0b0d12; font-weight: 800; }
+body.offline .status { background: color-mix(in srgb, var(--bad) 30%, var(--surface)); color: var(--text); }

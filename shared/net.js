@@ -7,6 +7,7 @@
 // net.sendPrivate(key, type, payload)     to the one device listening on that private key
 // net.on(type, fn) / net.onPrivate(type, fn)
 // net.onPresence(fn(keys:string[]))       who is online (presence keys)
+// net.onReconnect(fn)                      fired after the connection dropped and came back
 // net.close()
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js';
@@ -82,6 +83,7 @@ function createLocal(code, { presenceKey, privateKey }) {
     on: pubE.on,
     onPrivate: privE.on,
     onPresence: (fn) => presE.on('change', fn),
+    onReconnect: () => {}, // BroadcastChannel never drops
     close() {
       clearInterval(timer);
       pub.close();
@@ -101,11 +103,20 @@ function getClient() {
   return clientPromise;
 }
 
-function subscribe(channel) {
+// Resolves on the first SUBSCRIBED. supabase-js rejoins by itself after a drop (phone asleep,
+// Wi-Fi blip); later SUBSCRIBED calls fire onAgain so callers can resync.
+function subscribe(channel, onAgain) {
+  let first = true;
   return new Promise((resolve, reject) => {
     channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') resolve(channel);
-      else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') reject(new Error(status));
+      if (status === 'SUBSCRIBED') {
+        if (first) {
+          first = false;
+          resolve(channel);
+        } else onAgain?.();
+      } else if (first && (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT')) {
+        reject(new Error(status));
+      }
     });
   });
 }
@@ -123,7 +134,11 @@ async function createSupabase(code, { presenceKey, privateKey }) {
   pub.on('presence', { event: 'sync' }, () => {
     presE.emit('change', Object.keys(pub.presenceState()).filter(Boolean).sort());
   });
-  await subscribe(pub);
+  const reE = makeEmitter();
+  await subscribe(pub, async () => {
+    if (presenceKey) await pub.track({ at: Date.now() });
+    reE.emit('again');
+  });
   if (presenceKey) await pub.track({ at: Date.now() });
 
   let priv = null;
@@ -151,6 +166,7 @@ async function createSupabase(code, { presenceKey, privateKey }) {
     on: pubE.on,
     onPrivate: privE.on,
     onPresence: (fn) => presE.on('change', fn),
+    onReconnect: (fn) => reE.on('again', fn),
     async close() {
       await sb.removeChannel(pub);
       if (priv) await sb.removeChannel(priv);

@@ -4,7 +4,8 @@
 import { createRoomNet, pickMode } from './shared/net.js';
 import { roomCode, normalizeRoomCode, randomSeed } from './shared/util.js';
 import { cardEl } from './shared/cardview.js';
-import { createGame, applyAction, publicState, handOf, giveUp } from './games/secret-rule/engine.js';
+import { createGame, applyAction, publicState, handOf, giveUp, skipTurn } from './games/secret-rule/engine.js';
+import * as audio from './shared/audio.js';
 import { ANIMALS, COLORS, ANIMAL_SETS, NUMBER_RANGES, DEFAULT_DECK, buildDeck, deckLabel } from './games/secret-rule/cards.js';
 import { LEVELS, rulesFor, makeContext } from './games/secret-rule/rules.js';
 
@@ -21,6 +22,30 @@ let online = [];
 let game = null; // full engine state (secret!)
 let lastLineLen = 0;
 let lastRejectKey = '';
+
+// The host keeps everything in this browser's localStorage, so a refresh (or a crashed tab)
+// picks the same room up again. Saves older than 12 h are ignored.
+const SAVE_KEY = `sr:host:${code}`;
+function save() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ at: Date.now(), lobby: [...lobby.values()], game }));
+  } catch {
+    /* storage full or disabled — the game still runs, it just can't be restored */
+  }
+}
+let restored = false;
+try {
+  const snap = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
+  if (snap && Date.now() - snap.at < 12 * 3600e3) {
+    for (const p of snap.lobby || []) lobby.set(p.id, p);
+    game = snap.game || null;
+    lastLineLen = game?.line.length ?? 0;
+    lastRejectKey = game ? JSON.stringify(game.rejects) : '';
+    restored = true;
+  }
+} catch {
+  /* corrupt save — start fresh */
+}
 
 const net = await createRoomNet(code, { mode, presenceKey: 'host' });
 
@@ -41,6 +66,7 @@ net.onPresence((keys) => {
   render();
 });
 
+// Phones send 'join' when they open, when they come back, and every few seconds as a ping.
 net.on('join', ({ playerId, secret, name }) => {
   if (!playerId || !secret) return;
   const known = lobby.get(playerId);
@@ -49,13 +75,28 @@ net.on('join', ({ playerId, secret, name }) => {
     net.send('state', publicState(game));
     return;
   }
-  lobby.set(playerId, { id: playerId, name: String(name || 'ผู้เล่น').slice(0, 16), secret });
+  const cleanName = String(name || 'ผู้เล่น').slice(0, 16);
+  if (!known) audio.cue('join', `${cleanName} เข้าห้องแล้ว`);
+  const changed = !known || known.name !== cleanName || known.secret !== secret;
+  lobby.set(playerId, { id: playerId, name: cleanName, secret });
   if (game) {
     const gp = game.players.find((p) => p.id === playerId);
     if (gp) gp.name = lobby.get(playerId).name;
   }
   broadcastState();
   sendHand(playerId);
+  if (changed) {
+    save();
+    render();
+  }
+});
+
+// Leaving only removes you before the game starts; mid-game your seat waits for you to come back.
+net.on('leave', ({ playerId }) => {
+  if (game || !lobby.has(playerId)) return;
+  lobby.delete(playerId);
+  save();
+  broadcastState();
   render();
 });
 
@@ -75,9 +116,25 @@ function handleAction(action) {
       if (game.phase !== 'ended') showToast(e);
     }
   }
+  announce(events);
+  save();
   broadcastState();
   sendHand(action.playerId);
   render();
+}
+
+/** Sound + Thai voice for what just happened. */
+function announce(events) {
+  for (const e of events) {
+    if (e.type === 'judged') audio.sfx(e.ok ? 'ok' : 'nope');
+    if (e.type === 'traded') audio.sfx(e.ok ? 'trade' : 'nope');
+    if (e.type === 'turn') setTimeout(() => audio.cue('turn', `ตาของ ${nameOf(e.playerId)}`), 450);
+    if (e.type === 'ended') {
+      const rule = publicState(game).secretRule?.th ?? '';
+      if (e.gaveUp) audio.cue('giveup', `ยอมแพ้! กฎลับคือ ${rule}`, { interrupt: true });
+      else setTimeout(() => audio.cue('win', `${nameOf(e.winnerId)} ชนะ! กฎลับคือ ${rule}`, { interrupt: true }), 400);
+    }
+  }
 }
 
 net.on('play', ({ playerId, cardIds }) => handleAction({ type: 'play', playerId, cardIds }));
@@ -95,10 +152,38 @@ $('giveup').onclick = () => {
     return;
   }
   disarmGiveUp();
-  game = giveUp(game).state;
+  const r = giveUp(game);
+  game = r.state;
+  announce(r.events);
+  save();
   broadcastState();
   render();
 };
+
+// ---------- skip a turn (someone's phone died) ----------
+let skipArmed = null;
+$('skip').onclick = () => {
+  if (!game || game.phase !== 'turn') return;
+  if (!skipArmed) {
+    $('skip').classList.add('armed');
+    $('skip').textContent = `กดอีกครั้งเพื่อข้าม ${nameOf(game.players[game.turn].id)}`;
+    skipArmed = setTimeout(disarmSkip, 4000);
+    return;
+  }
+  disarmSkip();
+  const r = skipTurn(game);
+  game = r.state;
+  announce(r.events);
+  save();
+  broadcastState();
+  render();
+};
+function disarmSkip() {
+  clearTimeout(skipArmed);
+  skipArmed = null;
+  $('skip').classList.remove('armed');
+  $('skip').textContent = 'ข้ามตา';
+}
 function disarmGiveUp() {
   clearTimeout(giveUpArmed);
   giveUpArmed = null;
@@ -110,6 +195,7 @@ function disarmGiveUp() {
 $('start').onclick = startGame;
 $('again').onclick = () => {
   disarmGiveUp();
+  disarmSkip();
   game = null;
   render();
   startGame();
@@ -121,6 +207,8 @@ function startGame() {
   game = createGame({ players, seed: randomSeed(), settings: { level: levelValue(), deck: deckOpts() } });
   lastLineLen = game.line.length;
   lastRejectKey = '';
+  save();
+  audio.cue('start', `เริ่มเกม! ตาของ ${players[0].name}`);
   broadcastState();
   for (const p of players) sendHand(p.id);
   render();
@@ -294,13 +382,17 @@ function renderGame() {
   log.innerHTML = '';
   for (const e of pub.log.slice(-3).reverse()) {
     const row = document.createElement('div');
-    const what = e.kind === 'trade' ? (e.ok ? 'แลกทั้งมือ ✓' : 'แลกทั้งมือ แต่มีใบผ่าน ✗') : `ลง ${e.count} ใบ ${e.ok ? '✓' : '✗'}`;
+    const what =
+      e.kind === 'skip' ? 'ถูกข้ามตา' :
+      e.kind === 'trade' ? (e.ok ? 'แลกทั้งมือ ✓' : 'แลกทั้งมือ แต่มีใบผ่าน ✗') :
+      `ลง ${e.count} ใบ ${e.ok ? '✓' : '✗'}`;
     row.className = e.ok ? 'ok' : 'bad';
     row.textContent = `${nameOf(e.playerId)} ${what}`;
     log.append(row);
   }
 
   $('giveup').classList.toggle('hidden', pub.phase !== 'turn');
+  $('skip').classList.toggle('hidden', pub.phase !== 'turn');
   if (pub.phase === 'ended') {
     $('winner-label').textContent = pub.gaveUp ? 'ทั้งโต๊ะยอมแพ้' : 'ผู้ชนะ';
     $('winner').textContent = pub.gaveUp ? '🏳️ ไม่มีใครชนะ' : `🏆 ${nameOf(pub.winnerId)}`;
@@ -329,7 +421,36 @@ function showToast(e) {
   toastTimer = setTimeout(() => (t.className = ''), 1600);
 }
 
+// ---------- sound controls ----------
+function renderSound() {
+  const b = $('sound');
+  if (audio.isMuted()) b.textContent = '🔇 ปิดเสียง';
+  else if (!audio.isUnlocked()) b.textContent = '🔈 คลิกที่ไหนก็ได้เพื่อเปิดเสียง';
+  else b.textContent = audio.hasThaiVoice() ? '🔊 เสียง + พากย์ไทย' : '🔊 เสียง (เครื่องนี้ไม่มีเสียงพากย์ไทย)';
+}
+let firstUnlock = false;
+for (const ev of ['pointerdown', 'keydown']) {
+  addEventListener(ev, () => {
+    firstUnlock = !audio.isUnlocked();
+    audio.unlock();
+    setTimeout(renderSound, 50);
+  }, true);
+}
+$('sound').onclick = () => {
+  // The click that first unlocks sound doesn't also mute it.
+  if (!firstUnlock) audio.setMuted(!audio.isMuted());
+  firstUnlock = false;
+  setTimeout(renderSound, 60);
+};
+globalThis.speechSynthesis?.addEventListener?.('voiceschanged', renderSound);
+renderSound();
+
 render();
+if (restored) {
+  // Tell every phone where we are after a host refresh.
+  broadcastState();
+  for (const id of lobby.keys()) sendHand(id);
+}
 
 // Test hook for automated playtests only (?debug). Exposes the secret state — never use while playing.
 if (params.has('debug')) window.__sr = { get game() { return game; } };

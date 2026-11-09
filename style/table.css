@@ -111,3 +111,5 @@ header .spacer { flex: 1; }
 
 button.giveup { font-size: 1rem; padding: 0.5rem 1rem; color: var(--muted); }
 button.giveup.armed { background: var(--bad); border-color: var(--bad); color: #0b0d12; font-weight: 800; }
+
+header button.sound { font-size: 0.95rem; padding: 0.35rem 0.9rem; color: var(--muted); }
