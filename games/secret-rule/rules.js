@@ -28,11 +28,10 @@ export const RULES = [
   // Level 1 — one attribute
   { id: 'red', level: 1, th: 'สีแดงเท่านั้น', test: (c) => c.color === 'red' },
   { id: 'blue', level: 1, th: 'สีฟ้าเท่านั้น', test: (c) => c.color === 'blue' },
+  { id: 'green', level: 1, th: 'สีเขียวเท่านั้น', test: (c) => c.color === 'green' },
+  { id: 'yellow', level: 1, th: 'สีเหลืองเท่านั้น', test: (c) => c.color === 'yellow' },
   { id: 'odd', level: 1, th: 'เลขคี่เท่านั้น', test: odd },
   { id: 'even', level: 1, th: 'เลขคู่เท่านั้น', test: even },
-  { id: 'land', level: 1, th: 'สัตว์บกเท่านั้น', test: (c) => c.habitat === 'land' },
-  { id: 'water', level: 1, th: 'สัตว์น้ำเท่านั้น', test: (c) => c.habitat === 'water' },
-  { id: 'sky', level: 1, th: 'สัตว์ฟ้า (บินได้) เท่านั้น', test: (c) => c.habitat === 'sky' },
   { id: 'low', level: 1, th: 'เลข 1–4 เท่านั้น', test: (c) => c.n <= 4 },
   { id: 'le3', level: 1, th: 'เลข 1–3 เท่านั้น', test: (c) => c.n <= 3 },
   { id: 'only-elephant', level: 1, th: 'ช้างเท่านั้น', test: (c) => c.animal === 'elephant' },
@@ -40,9 +39,8 @@ export const RULES = [
 
   // Level 2 — or / not / range
   { id: 'red-or-blue', level: 2, th: 'สีแดงหรือสีฟ้า', test: (c) => c.color === 'red' || c.color === 'blue' },
+  { id: 'red-or-green', level: 2, th: 'สีแดงหรือสีเขียว', test: (c) => c.color === 'red' || c.color === 'green' },
   { id: 'yellow-or-green', level: 2, th: 'สีเหลืองหรือสีเขียว', test: (c) => c.color === 'yellow' || c.color === 'green' },
-  { id: 'not-water', level: 2, th: 'ไม่ใช่สัตว์น้ำ', test: (c) => c.habitat !== 'water' },
-  { id: 'not-land', level: 2, th: 'ไม่ใช่สัตว์บก', test: (c) => c.habitat !== 'land' },
   { id: 'high', level: 2, th: 'เลข 5 ขึ้นไป', test: (c) => c.n >= 5 },
   { id: 'mid', level: 2, th: 'เลข 3–6', test: (c) => c.n >= 3 && c.n <= 6 },
   { id: 'not-5-7', level: 2, minN: 8, th: 'เลขไม่ใช่ 5, 6, 7', test: (c) => c.n < 5 || c.n > 7 },
@@ -52,16 +50,15 @@ export const RULES = [
   { id: 'cat-or-fish', level: 2, th: 'แมวหรือปลา', test: (c) => c.animal === 'cat' || c.animal === 'fish' },
 
   // Level 3 — two conditions
-  { id: 'notwater-odd', level: 3, th: 'ไม่ใช่สัตว์น้ำ และเป็นเลขคี่', test: (c) => c.habitat !== 'water' && odd(c) },
-  { id: 'sky-or-red', level: 3, th: 'สัตว์ฟ้า หรือสีแดง', test: (c) => c.habitat === 'sky' || c.color === 'red' },
-  { id: 'water-or-even', level: 3, th: 'สัตว์น้ำ หรือเลขคู่', test: (c) => c.habitat === 'water' || even(c) },
   { id: 'odd-not-red', level: 3, th: 'เลขคี่ ที่ไม่ใช่สีแดง', test: (c) => odd(c) && c.color !== 'red' },
-  { id: 'land-or-blue', level: 3, th: 'สัตว์บก หรือสีฟ้า', test: (c) => c.habitat === 'land' || c.color === 'blue' },
-  { id: 'even-not-sky', level: 3, th: 'เลขคู่ ที่ไม่ใช่สัตว์ฟ้า', test: (c) => even(c) && c.habitat !== 'sky' },
   { id: 'high-not-green', level: 3, minN: 8, th: 'เลข 6 ขึ้นไป ที่ไม่ใช่สีเขียว', test: (c) => c.n >= 6 && c.color !== 'green' },
   { id: 'warm-low', level: 3, th: 'สีแดงหรือเหลือง ที่เลขไม่เกิน 5', test: (c) => (c.color === 'red' || c.color === 'yellow') && c.n <= 5 },
+  { id: 'even-or-blue', level: 3, th: 'เลขคู่ หรือสีฟ้า', test: (c) => even(c) || c.color === 'blue' },
+  { id: 'odd-high', level: 3, th: 'เลขคี่ ที่เป็น 5 ขึ้นไป', test: (c) => odd(c) && c.n >= 5 },
+  { id: 'green-or-le3', level: 3, th: 'สีเขียว หรือเลข 1–3', test: (c) => c.color === 'green' || c.n <= 3 },
+  { id: 'even-not-yellow', level: 3, th: 'เลขคู่ ที่ไม่ใช่สีเหลือง', test: (c) => even(c) && c.color !== 'yellow' },
+  { id: 'cat-or-even', level: 3, th: 'แมว หรือเลขคู่', test: (c) => c.animal === 'cat' || even(c) },
   { id: 'fish-or-red', level: 3, th: 'ปลา หรือสีแดง', test: (c) => c.animal === 'fish' || c.color === 'red' },
-  { id: 'land-odd-or-blue', level: 3, th: 'สัตว์บกเลขคี่ หรือสีฟ้า', test: (c) => (c.habitat === 'land' && odd(c)) || c.color === 'blue' },
 
   // Trick — depends on today's date or the table. ctx is fixed when the game starts.
   {

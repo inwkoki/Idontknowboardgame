@@ -10,9 +10,9 @@ test('default deck: 72 unique cards, each number 1–9 eight times', () => {
   for (let n = 1; n <= 9; n++) assert.equal(deck.filter((c) => c.n === n).length, 8, `number ${n}`);
 });
 
-test('18 animals × 4 colours, 6 animals per habitat', () => {
+test('18 animals × 4 colours, no habitat attribute', () => {
   assert.equal(ANIMALS.length, 18);
-  for (const h of ['land', 'water', 'sky']) assert.equal(ANIMALS.filter((a) => a.habitat === h).length, 6);
+  assert.ok(ANIMALS.every((a) => !('habitat' in a)));
   const deck = buildDeck();
   for (const color of ['red', 'yellow', 'green', 'blue']) assert.equal(deck.filter((c) => c.color === color).length, 18);
 });
@@ -43,7 +43,7 @@ test('deck is identical every build', () => {
 test('card ids describe the card', () => {
   const c = getCard('elephant.red.7.0');
   assert.equal(c.emoji, '🐘');
-  assert.equal(c.habitat, 'land');
+  assert.ok(!('habitat' in c));
   assert.equal(c.color, 'red');
   assert.equal(c.n, 7);
 });

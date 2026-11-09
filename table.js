@@ -5,7 +5,7 @@ import { createRoomNet, pickMode } from './shared/net.js';
 import { roomCode, normalizeRoomCode, randomSeed } from './shared/util.js';
 import { cardEl } from './shared/cardview.js';
 import { createGame, applyAction, publicState, handOf, giveUp } from './games/secret-rule/engine.js';
-import { ANIMALS, COLORS, HABITATS, ANIMAL_SETS, NUMBER_RANGES, DEFAULT_DECK, buildDeck, deckLabel } from './games/secret-rule/cards.js';
+import { ANIMALS, COLORS, ANIMAL_SETS, NUMBER_RANGES, DEFAULT_DECK, buildDeck, deckLabel } from './games/secret-rule/cards.js';
 import { LEVELS, rulesFor, makeContext } from './games/secret-rule/rules.js';
 
 const $ = (id) => document.getElementById(id);
@@ -184,23 +184,18 @@ function renderDeckInfo() {
   const colors = Object.entries(COLORS)
     .map(([k, c]) => `<span class="color-chip"><span class="sw" style="background:var(--${k})">${c.mark}</span>${c.th}</span>`)
     .join('');
-  const habitats = Object.entries(HABITATS)
-    .map(([h, info]) => {
-      const animals = ANIMALS.filter((a) => a.habitat === h && animalIds.includes(a.id))
-        .map((a) => `<span class="animal"><span class="e">${a.emoji}</span><span class="t">${a.th}</span></span>`)
-        .join('');
-      return `<div class="habitat"><span class="h">${info.th}</span><span class="animals">${animals}</span></div>`;
-    })
+  const animals = ANIMALS.filter((a) => animalIds.includes(a.id))
+    .map((a) => `<span class="animal"><span class="e">${a.emoji}</span><span class="t">${a.th}</span></span>`)
     .join('');
   const sample = [deck[0], deck[Math.floor(deck.length / 2) + 1], deck[deck.length - 3]].map((c) => c.id);
   el.innerHTML = `
     <div class="info-head">
-      <div><h2>ไพ่ในเกมนี้</h2><p class="lead muted">${deck.length} ใบ · กฎลับใช้ เลข สี สัตว์ หรือถิ่นของมัน</p></div>
+      <div><h2>ไพ่ในเกมนี้</h2><p class="lead muted">${deck.length} ใบ · กฎลับใช้ เลข สี หรือสัตว์</p></div>
       <div class="example" id="example-cards"></div>
     </div>
     <div class="info-row"><span class="k">เลข</span><span class="v">${nums}</span></div>
     <div class="info-row"><span class="k">สี</span><span class="v">${colors}</span></div>
-    <div class="info-row"><span class="k">สัตว์</span><span class="v" style="display:grid;gap:0.3rem">${habitats}</span></div>
+    <div class="info-row"><span class="k">สัตว์</span><span class="v animals">${animals}</span></div>
     <ul class="tips">
       <li>ลงไพ่ที่คิดว่าผ่านกฎ — ผ่านจะต่อแถว ไม่ผ่านจะแขวนไว้ใต้แถว</li>
       <li>ลงหลายใบพร้อมกันได้ แต่ต้องผ่านทุกใบตามลำดับ</li>

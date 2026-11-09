@@ -1,30 +1,24 @@
 import { mulberry32, shuffle } from '../../shared/util.js';
 
-export const HABITATS = {
-  land: { th: 'บก' },
-  water: { th: 'น้ำ' },
-  sky: { th: 'ฟ้า' },
-};
-
 export const ANIMALS = [
-  { id: 'elephant', emoji: '🐘', th: 'ช้าง', habitat: 'land' },
-  { id: 'tiger', emoji: '🐯', th: 'เสือ', habitat: 'land' },
-  { id: 'cat', emoji: '🐱', th: 'แมว', habitat: 'land' },
-  { id: 'dog', emoji: '🐶', th: 'หมา', habitat: 'land' },
-  { id: 'rabbit', emoji: '🐰', th: 'กระต่าย', habitat: 'land' },
-  { id: 'monkey', emoji: '🐒', th: 'ลิง', habitat: 'land' },
-  { id: 'fish', emoji: '🐟', th: 'ปลา', habitat: 'water' },
-  { id: 'turtle', emoji: '🐢', th: 'เต่า', habitat: 'water' },
-  { id: 'dolphin', emoji: '🐬', th: 'โลมา', habitat: 'water' },
-  { id: 'octopus', emoji: '🐙', th: 'หมึก', habitat: 'water' },
-  { id: 'crab', emoji: '🦀', th: 'ปู', habitat: 'water' },
-  { id: 'crocodile', emoji: '🐊', th: 'จระเข้', habitat: 'water' },
-  { id: 'bird', emoji: '🐦', th: 'นก', habitat: 'sky' },
-  { id: 'owl', emoji: '🦉', th: 'นกฮูก', habitat: 'sky' },
-  { id: 'bee', emoji: '🐝', th: 'ผึ้ง', habitat: 'sky' },
-  { id: 'butterfly', emoji: '🦋', th: 'ผีเสื้อ', habitat: 'sky' },
-  { id: 'bat', emoji: '🦇', th: 'ค้างคาว', habitat: 'sky' },
-  { id: 'eagle', emoji: '🦅', th: 'อินทรี', habitat: 'sky' },
+  { id: 'elephant', emoji: '🐘', th: 'ช้าง' },
+  { id: 'tiger', emoji: '🐯', th: 'เสือ' },
+  { id: 'cat', emoji: '🐱', th: 'แมว' },
+  { id: 'dog', emoji: '🐶', th: 'หมา' },
+  { id: 'rabbit', emoji: '🐰', th: 'กระต่าย' },
+  { id: 'monkey', emoji: '🐒', th: 'ลิง' },
+  { id: 'fish', emoji: '🐟', th: 'ปลา' },
+  { id: 'turtle', emoji: '🐢', th: 'เต่า' },
+  { id: 'dolphin', emoji: '🐬', th: 'โลมา' },
+  { id: 'octopus', emoji: '🐙', th: 'หมึก' },
+  { id: 'crab', emoji: '🦀', th: 'ปู' },
+  { id: 'crocodile', emoji: '🐊', th: 'จระเข้' },
+  { id: 'bird', emoji: '🐦', th: 'นก' },
+  { id: 'owl', emoji: '🦉', th: 'นกฮูก' },
+  { id: 'bee', emoji: '🐝', th: 'ผึ้ง' },
+  { id: 'butterfly', emoji: '🦋', th: 'ผีเสื้อ' },
+  { id: 'bat', emoji: '🦇', th: 'ค้างคาว' },
+  { id: 'eagle', emoji: '🦅', th: 'อินทรี' },
 ];
 export const ANIMAL_BY_ID = Object.fromEntries(ANIMALS.map((a) => [a.id, a]));
 
@@ -65,7 +59,7 @@ export function getCard(id) {
     const [animal, color, n] = id.split('.');
     const a = ANIMAL_BY_ID[animal];
     if (!a || !COLORS[color]) throw new Error(`bad card id ${id}`);
-    c = { id, animal, emoji: a.emoji, nameTh: a.th, habitat: a.habitat, color, n: Number(n) };
+    c = { id, animal, emoji: a.emoji, nameTh: a.th, color, n: Number(n) };
     cache.set(id, c);
   }
   return c;
