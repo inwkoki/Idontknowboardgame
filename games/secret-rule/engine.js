@@ -1,42 +1,46 @@
 // Pure game logic. (state, action) → { state, events }. No DOM, no network.
 // The host page owns the full state; publicState() strips secrets before broadcast.
 
-import { CARD_BY_ID } from './cards.js';
-import { RULE_BY_ID, rulesForLevel, judgeSequence } from './rules.js';
+import { getCard, buildDeck, DEFAULT_DECK } from './cards.js';
+import { RULE_BY_ID, rulesFor, judgeSequence, makeContext, ruleText } from './rules.js';
 import { mulberry32, shuffle } from '../../shared/util.js';
-import { CARDS } from './cards.js';
 
 export const DEFAULT_SETTINGS = {
-  level: 1, // 1–3 now, or 'random'
+  level: 1, // 1, 2, 3, 'trick' or 'random'
   handSize: 7,
+  deck: DEFAULT_DECK, // { animals: 'all'|'four', maxN: 9|6 }
 };
 
-const card = (id) => CARD_BY_ID[id];
+const card = getCard;
 const cards = (ids) => ids.map(card);
 
 /**
- * @param {{players:{id:string,name:string}[], settings?:object, seed:number, ruleId?:string}} opts
+ * @param {{players:{id:string,name:string}[], settings?:object, seed:number, ruleId?:string, ctx?:object}} opts
+ * ctx: facts for 'trick' rules (date, player count). Defaults to today; pass a fixed one in tests.
  */
-export function createGame({ players, settings = {}, seed, ruleId }) {
+export function createGame({ players, settings = {}, seed, ruleId, ctx }) {
   if (!players || players.length < 2) throw new Error('need at least 2 players');
-  const s = { ...DEFAULT_SETTINGS, ...settings };
+  const s = { ...DEFAULT_SETTINGS, ...settings, deck: { ...DEFAULT_DECK, ...(settings.deck || {}) } };
   const rng = mulberry32(seed);
+  const context = { ...makeContext(new Date(), players.length), ...(ctx || {}), players: players.length };
+  const fullDeck = buildDeck(s.deck);
 
-  const pool = rulesForLevel(s.level);
+  const pool = rulesFor({ level: s.level, deck: fullDeck, ctx: context });
   const rule = ruleId ? RULE_BY_ID[ruleId] : pool[Math.floor(rng() * pool.length)];
-  if (!rule) throw new Error('unknown rule');
+  if (!rule) throw new Error('no rule fits these settings');
 
-  let deck = shuffle(CARDS.map((c) => c.id), rng);
+  let deck = shuffle(fullDeck.map((c) => c.id), rng);
   const ps = players.map((p) => ({ id: p.id, name: p.name, hand: deck.splice(0, s.handSize) }));
 
   // Starting card: first card in the draw pile that fits the rule.
-  const startIdx = deck.findIndex((id) => rule.test(card(id), null, []));
+  const startIdx = deck.findIndex((id) => rule.test(card(id), null, [], context));
   const start = deck.splice(startIdx, 1)[0];
 
   return {
     phase: 'turn',
     settings: s,
     secretRuleId: rule.id,
+    ctx: context,
     deck,
     discard: [],
     players: ps,
@@ -77,7 +81,7 @@ export function applyAction(prev, action) {
     if (!ids.every((id) => player.hand.includes(id))) return { state: prev, events: [] };
 
     const rule = RULE_BY_ID[state.secretRuleId];
-    const ok = judgeSequence(rule, cards(state.line), cards(ids));
+    const ok = judgeSequence(rule, cards(state.line), cards(ids), state.ctx);
     const events = [];
 
     if (ok) {
@@ -100,7 +104,7 @@ export function applyAction(prev, action) {
     // Player claims no card in hand fits.
     const rule = RULE_BY_ID[state.secretRuleId];
     const line = cards(state.line);
-    const fitting = player.hand.find((id) => judgeSequence(rule, line, [card(id)]));
+    const fitting = player.hand.find((id) => judgeSequence(rule, line, [card(id)], state.ctx));
     const events = [];
     if (fitting === undefined) {
       const n = player.hand.length;
@@ -150,6 +154,16 @@ function draw(state, n) {
   return out;
 }
 
+/** The table gives up: end the game with no winner and reveal the rule. Host-only, never sent by phones. */
+export function giveUp(prev) {
+  if (!prev || prev.phase !== 'turn') return { state: prev, events: [] };
+  const state = structuredClone(prev);
+  state.phase = 'ended';
+  state.winnerId = null;
+  state.gaveUp = true;
+  return { state, events: [{ type: 'ended', winnerId: null, gaveUp: true }] };
+}
+
 /** What every screen may see. The secret rule is only revealed once the game has ended. */
 export function publicState(state) {
   return {
@@ -164,9 +178,10 @@ export function publicState(state) {
     log: state.log,
     round: state.round,
     winnerId: state.winnerId,
+    gaveUp: !!state.gaveUp,
     secretRule:
       state.phase === 'ended'
-        ? { id: state.secretRuleId, th: RULE_BY_ID[state.secretRuleId].th }
+        ? { id: state.secretRuleId, th: ruleText(RULE_BY_ID[state.secretRuleId], state.ctx) }
         : null,
   };
 }

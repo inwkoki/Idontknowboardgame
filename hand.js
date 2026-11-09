@@ -145,7 +145,8 @@ function render() {
   for (const id of ['status', 'tail', 'hand', 'actions']) show(id, !ended);
   if (ended) {
     const w = state.players.find((p) => p.id === state.winnerId);
-    $('winner').textContent = w?.id === me.playerId ? '🏆 คุณ!' : `🏆 ${w?.name ?? ''}`;
+    $('winner-label').textContent = state.gaveUp ? 'ทั้งโต๊ะยอมแพ้' : 'ผู้ชนะ';
+    $('winner').textContent = state.gaveUp ? '🏳️ ไม่มีใครชนะ' : w?.id === me.playerId ? '🏆 คุณ!' : `🏆 ${w?.name ?? ''}`;
     $('rule').textContent = state.secretRule?.th ?? '';
     return;
   }

@@ -4,7 +4,9 @@
 import { createRoomNet, pickMode } from './shared/net.js';
 import { roomCode, normalizeRoomCode, randomSeed } from './shared/util.js';
 import { cardEl } from './shared/cardview.js';
-import { createGame, applyAction, publicState, handOf } from './games/secret-rule/engine.js';
+import { createGame, applyAction, publicState, handOf, giveUp } from './games/secret-rule/engine.js';
+import { ANIMALS, COLORS, HABITATS, ANIMAL_SETS, NUMBER_RANGES, DEFAULT_DECK, buildDeck, deckLabel } from './games/secret-rule/cards.js';
+import { LEVELS, rulesFor, makeContext } from './games/secret-rule/rules.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -81,9 +83,33 @@ function handleAction(action) {
 net.on('play', ({ playerId, cardIds }) => handleAction({ type: 'play', playerId, cardIds }));
 net.on('trade', ({ playerId }) => handleAction({ type: 'trade', playerId }));
 
+// ---------- give up: reveal the rule, nobody wins ----------
+// Tap twice within 4 s so a stray click can't end the game.
+let giveUpArmed = null;
+$('giveup').onclick = () => {
+  if (!game || game.phase !== 'turn') return;
+  if (!giveUpArmed) {
+    $('giveup').classList.add('armed');
+    $('giveup').textContent = 'กดอีกครั้งเพื่อเฉลย';
+    giveUpArmed = setTimeout(disarmGiveUp, 4000);
+    return;
+  }
+  disarmGiveUp();
+  game = giveUp(game).state;
+  broadcastState();
+  render();
+};
+function disarmGiveUp() {
+  clearTimeout(giveUpArmed);
+  giveUpArmed = null;
+  $('giveup').classList.remove('armed');
+  $('giveup').textContent = 'ยอมแพ้ · เฉลยกฎ';
+}
+
 // ---------- lobby controls ----------
 $('start').onclick = startGame;
 $('again').onclick = () => {
+  disarmGiveUp();
   game = null;
   render();
   startGame();
@@ -92,8 +118,7 @@ $('again').onclick = () => {
 function startGame() {
   const players = [...lobby.values()].map(({ id, name }) => ({ id, name }));
   if (players.length < 2) return;
-  const level = $('level').value;
-  game = createGame({ players, seed: randomSeed(), settings: { level: level === 'random' ? 'random' : Number(level) } });
+  game = createGame({ players, seed: randomSeed(), settings: { level: levelValue(), deck: deckOpts() } });
   lastLineLen = game.line.length;
   lastRejectKey = '';
   broadcastState();
@@ -116,6 +141,76 @@ function render() {
   if (inGame) renderGame();
   else renderLobby();
 }
+
+// ---------- deck + rule options (remembered on this computer) ----------
+const saved = (() => {
+  try { return JSON.parse(localStorage.getItem('sr:options')) || {}; } catch { return {}; }
+})();
+const options = {
+  animals: ANIMAL_SETS[saved.animals] ? saved.animals : DEFAULT_DECK.animals,
+  maxN: NUMBER_RANGES[saved.maxN] ? Number(saved.maxN) : DEFAULT_DECK.maxN,
+  level: LEVELS[saved.level] ? saved.level : '1',
+};
+function fillSelect(el, entries, value) {
+  el.innerHTML = '';
+  for (const [v, label] of entries) el.append(new Option(label, v, false, String(v) === String(value)));
+}
+fillSelect($('opt-animals'), Object.entries(ANIMAL_SETS).map(([k, v]) => [k, v.th]), options.animals);
+fillSelect($('opt-numbers'), Object.entries(NUMBER_RANGES).sort((a, b) => b[0] - a[0]).map(([k, v]) => [k, v.th]), options.maxN);
+fillSelect($('level'), Object.entries(LEVELS), options.level);
+for (const id of ['opt-animals', 'opt-numbers', 'level']) {
+  $(id).onchange = () => {
+    options.animals = $('opt-animals').value;
+    options.maxN = Number($('opt-numbers').value);
+    options.level = $('level').value;
+    localStorage.setItem('sr:options', JSON.stringify(options));
+    renderDeckInfo();
+    render();
+  };
+}
+const deckOpts = () => ({ animals: options.animals, maxN: options.maxN });
+const levelValue = () => (/^\d$/.test(options.level) ? Number(options.level) : options.level);
+function playableRuleCount() {
+  const players = Math.max(2, lobby.size);
+  return rulesFor({ level: levelValue(), deck: buildDeck(deckOpts()), ctx: makeContext(new Date(), players) }).length;
+}
+
+// What's on the cards — something to read while friends join.
+function renderDeckInfo() {
+  const el = $('deck-info');
+  const deck = buildDeck(deckOpts());
+  const animalIds = ANIMAL_SETS[options.animals].ids;
+  const nums = Array.from({ length: options.maxN }, (_, i) => `<span class="num-chip">${i + 1}</span>`).join('');
+  const colors = Object.entries(COLORS)
+    .map(([k, c]) => `<span class="color-chip"><span class="sw" style="background:var(--${k})">${c.mark}</span>${c.th}</span>`)
+    .join('');
+  const habitats = Object.entries(HABITATS)
+    .map(([h, info]) => {
+      const animals = ANIMALS.filter((a) => a.habitat === h && animalIds.includes(a.id))
+        .map((a) => `<span class="animal"><span class="e">${a.emoji}</span><span class="t">${a.th}</span></span>`)
+        .join('');
+      return `<div class="habitat"><span class="h">${info.th}</span><span class="animals">${animals}</span></div>`;
+    })
+    .join('');
+  const sample = [deck[0], deck[Math.floor(deck.length / 2) + 1], deck[deck.length - 3]].map((c) => c.id);
+  el.innerHTML = `
+    <div class="info-head">
+      <div><h2>ไพ่ในเกมนี้</h2><p class="lead muted">${deck.length} ใบ · กฎลับใช้ เลข สี สัตว์ หรือถิ่นของมัน</p></div>
+      <div class="example" id="example-cards"></div>
+    </div>
+    <div class="info-row"><span class="k">เลข</span><span class="v">${nums}</span></div>
+    <div class="info-row"><span class="k">สี</span><span class="v">${colors}</span></div>
+    <div class="info-row"><span class="k">สัตว์</span><span class="v" style="display:grid;gap:0.3rem">${habitats}</span></div>
+    <ul class="tips">
+      <li>ลงไพ่ที่คิดว่าผ่านกฎ — ผ่านจะต่อแถว ไม่ผ่านจะแขวนไว้ใต้แถว</li>
+      <li>ลงหลายใบพร้อมกันได้ แต่ต้องผ่านทุกใบตามลำดับ</li>
+      <li>ไม่มีใบไหนผ่านจริง? กด "ไม่มีใบไหนผ่าน" จะได้ไพ่ลดลง 1 ใบ</li>
+      <li>ใครหมดมือก่อนชนะ · ยอมแพ้เมื่อไหร่ก็เฉลยกฎได้</li>
+    </ul>`;
+  const ex = $('example-cards');
+  for (const id of sample) ex.append(cardEl(id, { size: 'sm' }));
+}
+renderDeckInfo();
 
 let qrDone = false;
 function renderLobby() {
@@ -143,7 +238,9 @@ function renderLobby() {
     row.lastChild.textContent = p.name;
     list.append(row);
   }
-  $('start').disabled = players.length < 2;
+  const nRules = playableRuleCount();
+  $('rule-count').textContent = nRules ? `มีกฎให้สุ่ม ${nRules} แบบ` : 'ไม่มีกฎที่เข้ากับตัวเลือกนี้ ลองเปลี่ยนสัตว์/เลข/ระดับ';
+  $('start').disabled = players.length < 2 || nRules === 0;
   $('start-hint').classList.toggle('hidden', players.length >= 2);
 }
 // The QR library loads with `defer`; draw once it is ready.
@@ -151,7 +248,7 @@ window.addEventListener('load', () => render());
 
 function renderGame() {
   const pub = publicState(game);
-  $('hdr-info').textContent = `รอบที่ ${pub.round} · กองจั่ว ${pub.deckCount} ใบ`;
+  $('hdr-info').textContent = `${deckLabel(pub.settings.deck)} · รอบที่ ${pub.round} · กองจั่ว ${pub.deckCount} ใบ`;
 
   // Line + rejects hanging under the card they were tried after.
   const lineEl = $('line');
@@ -208,8 +305,10 @@ function renderGame() {
     log.append(row);
   }
 
+  $('giveup').classList.toggle('hidden', pub.phase !== 'turn');
   if (pub.phase === 'ended') {
-    $('winner').textContent = `🏆 ${nameOf(pub.winnerId)}`;
+    $('winner-label').textContent = pub.gaveUp ? 'ทั้งโต๊ะยอมแพ้' : 'ผู้ชนะ';
+    $('winner').textContent = pub.gaveUp ? '🏳️ ไม่มีใครชนะ' : `🏆 ${nameOf(pub.winnerId)}`;
     $('rule').textContent = pub.secretRule.th;
   }
 }
