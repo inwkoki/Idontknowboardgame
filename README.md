@@ -17,4 +17,4 @@ GitHub Pages → Settings → Pages → Deploy from branch `main` / root
 
 ## Supabase
 
-ใส่ `SUPABASE_URL` และ `SUPABASE_ANON_KEY` ใน `config.js` และสร้างตาราง `rooms` ตาม SQL ใน `SPEC.md` §7 (ถ้าไม่ใส่ จะเล่นได้แค่ local mode หลายแท็บในเครื่องเดียว)
+ตั้งค่าแล้ว: project `secret-rule` (Tokyo) และตาราง `rooms` ตาม SQL ใน `SPEC.md` §7 ถูกสร้างแล้ว ค่า URL กับ publishable key อยู่ใน `config.js` (key นี้ออกแบบมาให้เปิดเผยใน browser ได้)
