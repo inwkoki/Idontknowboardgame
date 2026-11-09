@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>กฎลับ</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%90%98%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="style/base.css" />
+  <style>
+    body { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+    main { width: min(420px, 100%); display: grid; gap: 28px; text-align: center; }
+    h1 { font-size: 56px; margin: 0; letter-spacing: 2px; }
+    .box { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 20px; display: grid; gap: 12px; }
+    .box input { text-align: center; font-size: 28px; letter-spacing: 8px; text-transform: uppercase; }
+    .emoji { font-size: 40px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div>
+      <div class="emoji">🐘 🐟 🦉</div>
+      <h1>กฎลับ</h1>
+      <p class="muted">ลงไพ่ เดากฎ ใครหมดมือก่อนชนะ</p>
+    </div>
+
+    <div class="box">
+      <strong>เข้าห้อง (มือถือ)</strong>
+      <input id="code" maxlength="4" placeholder="ABCD" autocomplete="off" />
+      <button class="primary" id="join">เข้าห้อง</button>
+    </div>
+
+    <div class="box">
+      <strong>สร้างห้อง (คอมที่ต่อทีวี)</strong>
+      <button id="create">สร้างห้องใหม่</button>
+    </div>
+  </main>
+
+  <script type="module">
+    import { normalizeRoomCode } from './shared/util.js';
+    const net = new URLSearchParams(location.search).get('net');
+    const extra = net ? `&net=${net}` : '';
+    document.getElementById('create').onclick = () => {
+      location.href = `table.html${net ? `?net=${net}` : ''}`;
+    };
+    const go = () => {
+      const code = normalizeRoomCode(document.getElementById('code').value);
+      if (code.length === 4) location.href = `hand.html?room=${code}${extra}`;
+    };
+    document.getElementById('join').onclick = go;
+    document.getElementById('code').addEventListener('keydown', (e) => e.key === 'Enter' && go());
+  </script>
+</body>
+</html>

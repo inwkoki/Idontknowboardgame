@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>กฎลับ — โต๊ะ</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%90%98%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="style/base.css" />
+  <link rel="stylesheet" href="style/table.css" />
+  <script src="vendor/qrcode.js" defer></script>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>กฎลับ</h1>
+      <span class="muted">ห้อง <span class="code" id="hdr-code">----</span></span>
+      <span class="spacer"></span>
+      <span class="muted" id="hdr-info"></span>
+    </header>
+
+    <section id="lobby">
+      <div class="join">
+        <div class="muted">สแกนด้วยมือถือ หรือเข้า <span id="site"></span> แล้วใส่รหัส</div>
+        <div class="big-code" id="big-code">----</div>
+        <div class="qr" id="qr"></div>
+        <div class="url muted" id="join-url"></div>
+      </div>
+      <div class="side">
+        <h2 style="margin:0">ผู้เล่น (<span id="pcount">0</span>)</h2>
+        <div class="players" id="lobby-players"><div class="muted">รอเพื่อนเข้าห้อง…</div></div>
+        <div class="settings">
+          <label for="level">ความยากของกฎ</label>
+          <select id="level">
+            <option value="1">ระดับ 1 — ง่าย</option>
+            <option value="2">ระดับ 2</option>
+            <option value="3">ระดับ 3 — ยาก</option>
+            <option value="random">สุ่ม</option>
+          </select>
+        </div>
+        <button class="primary" id="start" disabled>เริ่มเกม</button>
+        <div class="muted" id="start-hint">ต้องมีผู้เล่นอย่างน้อย 2 คน</div>
+      </div>
+    </section>
+
+    <section id="game" class="hidden">
+      <div id="line"></div>
+    </section>
+
+    <footer id="bar" class="hidden">
+      <div id="chips" style="display:flex;gap:1rem"></div>
+      <span class="spacer"></span>
+      <div id="log"></div>
+    </footer>
+  </div>
+
+  <div id="ended" class="hidden">
+    <div class="panel">
+      <div class="muted" style="font-size:1.6rem">ผู้ชนะ</div>
+      <div class="who" id="winner"></div>
+      <div class="muted" style="font-size:1.6rem">กฎลับคือ</div>
+      <div class="rule" id="rule"></div>
+      <button class="primary" id="again">เล่นอีกตา</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script type="module" src="table.js"></script>
+</body>
+</html>

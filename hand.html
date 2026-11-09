@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1115" />
+  <title>กฎลับ — มือ</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%90%98%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="style/base.css" />
+  <link rel="stylesheet" href="style/hand.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- step 1: room + name -->
+    <div class="form hidden" id="join-form">
+      <h1>กฎลับ</h1>
+      <input class="code-input" id="in-code" maxlength="4" placeholder="รหัสห้อง" autocomplete="off" />
+      <input id="in-name" maxlength="16" placeholder="ชื่อของคุณ" autocomplete="nickname" />
+      <button class="primary" id="btn-join">เข้าห้อง</button>
+      <div class="muted" id="join-msg"></div>
+    </div>
+
+    <!-- step 2: playing -->
+    <div class="top hidden" id="top">
+      <span class="me" id="me"></span>
+      <span class="spacer"></span>
+      <span class="room" id="room"></span>
+    </div>
+    <div class="status hidden" id="status">กำลังเชื่อมต่อ…</div>
+    <div class="tail hidden" id="tail"></div>
+    <div id="hand" class="hidden"></div>
+    <div class="actions hidden" id="actions">
+      <button class="primary" id="btn-play" disabled>ลงไพ่</button>
+      <div class="row">
+        <button id="btn-clear" disabled>ล้างที่เลือก</button>
+        <button id="btn-trade" disabled>ไม่มีใบไหนผ่าน</button>
+      </div>
+    </div>
+
+    <div class="ended hidden" id="ended">
+      <div class="muted">ผู้ชนะ</div>
+      <div class="big" id="winner"></div>
+      <div class="muted">กฎลับคือ</div>
+      <div class="rule" id="rule"></div>
+      <div class="muted">รอโต๊ะเริ่มเกมใหม่…</div>
+    </div>
+  </div>
+  <div id="toast"></div>
+
+  <script type="module" src="hand.js"></script>
+</body>
+</html>

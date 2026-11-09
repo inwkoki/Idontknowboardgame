@@ -1,0 +1,241 @@
+// HOST + TV screen. This page is the Rule Keeper: it owns the full game state
+// (including the secret rule and every hand) and is the only place actions are judged.
+
+import { createRoomNet, pickMode } from './shared/net.js';
+import { roomCode, normalizeRoomCode, randomSeed } from './shared/util.js';
+import { cardEl } from './shared/cardview.js';
+import { createGame, applyAction, publicState, handOf } from './games/secret-rule/engine.js';
+
+const $ = (id) => document.getElementById(id);
+
+const params = new URLSearchParams(location.search);
+const mode = pickMode();
+const code = normalizeRoomCode(params.get('room')) || roomCode();
+history.replaceState(null, '', `?room=${code}${mode === 'local' ? '&net=local' : ''}${params.has('debug') ? '&debug' : ''}`);
+
+// ---------- state ----------
+const lobby = new Map(); // playerId -> { id, name, secret }
+let online = [];
+let game = null; // full engine state (secret!)
+let lastLineLen = 0;
+let lastRejectKey = '';
+
+const net = await createRoomNet(code, { mode, presenceKey: 'host' });
+
+// ---------- networking ----------
+function broadcastState() {
+  const pub = game ? publicState(game) : { phase: 'lobby', players: [...lobby.values()].map(({ id, name }) => ({ id, name })) };
+  net.send('state', pub);
+}
+
+function sendHand(playerId) {
+  const p = lobby.get(playerId);
+  if (!p || !game) return;
+  net.sendPrivate(p.secret, 'hand', { cards: handOf(game, playerId) });
+}
+
+net.onPresence((keys) => {
+  online = keys;
+  render();
+});
+
+net.on('join', ({ playerId, secret, name }) => {
+  if (!playerId || !secret) return;
+  const known = lobby.get(playerId);
+  if (!known && game) {
+    // Game already running: late joiners only get to watch.
+    net.send('state', publicState(game));
+    return;
+  }
+  lobby.set(playerId, { id: playerId, name: String(name || 'ผู้เล่น').slice(0, 16), secret });
+  if (game) {
+    const gp = game.players.find((p) => p.id === playerId);
+    if (gp) gp.name = lobby.get(playerId).name;
+  }
+  broadcastState();
+  sendHand(playerId);
+  render();
+});
+
+net.on('sync', ({ playerId }) => {
+  broadcastState();
+  sendHand(playerId);
+});
+
+function handleAction(action) {
+  if (!game) return;
+  const { state, events } = applyAction(game, action);
+  if (state === game) return; // invalid, ignore quietly
+  game = state;
+  for (const e of events) {
+    if (e.type === 'judged' || e.type === 'traded') {
+      net.send('judged', e);
+      if (game.phase !== 'ended') showToast(e);
+    }
+  }
+  broadcastState();
+  sendHand(action.playerId);
+  render();
+}
+
+net.on('play', ({ playerId, cardIds }) => handleAction({ type: 'play', playerId, cardIds }));
+net.on('trade', ({ playerId }) => handleAction({ type: 'trade', playerId }));
+
+// ---------- lobby controls ----------
+$('start').onclick = startGame;
+$('again').onclick = () => {
+  game = null;
+  render();
+  startGame();
+};
+
+function startGame() {
+  const players = [...lobby.values()].map(({ id, name }) => ({ id, name }));
+  if (players.length < 2) return;
+  const level = $('level').value;
+  game = createGame({ players, seed: randomSeed(), settings: { level: level === 'random' ? 'random' : Number(level) } });
+  lastLineLen = game.line.length;
+  lastRejectKey = '';
+  broadcastState();
+  for (const p of players) sendHand(p.id);
+  render();
+}
+
+// ---------- rendering ----------
+const nameOf = (id) => lobby.get(id)?.name ?? '?';
+
+function render() {
+  $('hdr-code').textContent = code;
+  const inGame = !!game;
+  $('lobby').classList.toggle('hidden', inGame);
+  $('game').classList.toggle('hidden', !inGame);
+  $('bar').classList.toggle('hidden', !inGame);
+  const ended = !!game && game.phase === 'ended';
+  $('ended').classList.toggle('hidden', !ended);
+  if (ended) $('toast').className = '';
+  if (inGame) renderGame();
+  else renderLobby();
+}
+
+let qrDone = false;
+function renderLobby() {
+  $('hdr-info').textContent = mode === 'local' ? 'โหมดทดสอบ (local)' : '';
+  $('big-code').textContent = code;
+  const url = new URL(`hand.html?room=${code}${mode === 'local' ? '&net=local' : ''}`, location.href).href;
+  $('join-url').textContent = url;
+  $('site').textContent = new URL('.', location.href).host;
+  if (!qrDone && window.qrcode) {
+    const qr = window.qrcode(0, 'M');
+    qr.addData(url);
+    qr.make();
+    $('qr').innerHTML = qr.createSvgTag({ cellSize: 6, margin: 0, scalable: true });
+    qrDone = true;
+  }
+
+  const list = $('lobby-players');
+  const players = [...lobby.values()];
+  $('pcount').textContent = players.length;
+  list.innerHTML = players.length ? '' : '<div class="muted">รอเพื่อนเข้าห้อง…</div>';
+  for (const p of players) {
+    const row = document.createElement('div');
+    row.className = 'player';
+    row.innerHTML = `<span class="dot ${online.includes(p.id) ? 'on' : ''}"></span><span></span>`;
+    row.lastChild.textContent = p.name;
+    list.append(row);
+  }
+  $('start').disabled = players.length < 2;
+  $('start-hint').classList.toggle('hidden', players.length >= 2);
+}
+// The QR library loads with `defer`; draw once it is ready.
+window.addEventListener('load', () => render());
+
+function renderGame() {
+  const pub = publicState(game);
+  $('hdr-info').textContent = `รอบที่ ${pub.round} · กองจั่ว ${pub.deckCount} ใบ`;
+
+  // Line + rejects hanging under the card they were tried after.
+  const lineEl = $('line');
+  lineEl.innerHTML = '';
+  const rejectKey = JSON.stringify(pub.rejects);
+  const newReject = rejectKey !== lastRejectKey ? findNewestReject(pub.rejects) : null;
+  pub.line.forEach((id, i) => {
+    const slot = document.createElement('div');
+    slot.className = 'slot';
+    const c = cardEl(id, { size: 'md' });
+    if (i >= lastLineLen) c.classList.add('new');
+    slot.append(c);
+    const attempts = pub.rejects[i] || [];
+    if (attempts.length) {
+      const rj = document.createElement('div');
+      rj.className = 'rejects';
+      attempts.forEach((ids, ai) => {
+        const a = document.createElement('div');
+        a.className = `attempt${ids.length > 1 ? ' multi' : ''}`;
+        for (const rid of ids) {
+          const rc = cardEl(rid, { size: 'sm', dim: true });
+          if (newReject && newReject.at === i && newReject.idx === ai) rc.classList.add('rejected-new');
+          a.append(rc);
+        }
+        rj.append(a);
+      });
+      slot.append(rj);
+    }
+    lineEl.append(slot);
+  });
+  lastLineLen = pub.line.length;
+  lastRejectKey = rejectKey;
+  lineEl.lastElementChild?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+  // Player chips
+  const chips = $('chips');
+  chips.innerHTML = '';
+  for (const p of pub.players) {
+    const chip = document.createElement('div');
+    chip.className = `pchip${p.id === pub.turnPlayerId && pub.phase === 'turn' ? ' turn' : ''}`;
+    chip.innerHTML = `<span class="dot ${online.includes(p.id) ? 'on' : ''}"></span><span class="nm"></span><span class="count">${p.handCount}</span>`;
+    chip.querySelector('.nm').textContent = p.name;
+    chips.append(chip);
+  }
+
+  // Log (last 3)
+  const log = $('log');
+  log.innerHTML = '';
+  for (const e of pub.log.slice(-3).reverse()) {
+    const row = document.createElement('div');
+    const what = e.kind === 'trade' ? (e.ok ? 'แลกทั้งมือ ✓' : 'แลกทั้งมือ แต่มีใบผ่าน ✗') : `ลง ${e.count} ใบ ${e.ok ? '✓' : '✗'}`;
+    row.className = e.ok ? 'ok' : 'bad';
+    row.textContent = `${nameOf(e.playerId)} ${what}`;
+    log.append(row);
+  }
+
+  if (pub.phase === 'ended') {
+    $('winner').textContent = `🏆 ${nameOf(pub.winnerId)}`;
+    $('rule').textContent = pub.secretRule.th;
+  }
+}
+
+function findNewestReject(rejects) {
+  // The newest attempt is the last one under the highest index that changed; good enough for a shake.
+  let best = null;
+  for (const [at, list] of Object.entries(rejects)) {
+    const k = Number(at);
+    if (!best || k >= best.at) best = { at: k, idx: list.length - 1 };
+  }
+  return best;
+}
+
+let toastTimer;
+function showToast(e) {
+  const t = $('toast');
+  const who = nameOf(e.playerId);
+  if (e.type === 'traded') t.textContent = e.ok ? `${who} ไม่มีใบไหนผ่านจริง ✓` : `${who} มีใบที่ผ่านอยู่! ✗`;
+  else t.textContent = e.ok ? `ผ่าน ✓` : `ไม่ผ่าน ✗`;
+  t.className = `show ${e.ok ? 'ok' : 'bad'}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (t.className = ''), 1600);
+}
+
+render();
+
+// Test hook for automated playtests only (?debug). Exposes the secret state — never use while playing.
+if (params.has('debug')) window.__sr = { get game() { return game; } };
